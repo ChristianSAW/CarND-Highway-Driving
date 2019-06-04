@@ -154,4 +154,33 @@ vector<double> getXY(double s, double d, const vector<double> &maps_s,
   return {x,y};
 }
 
+//Go In Straight Line 
+void goStraightLine(vector<double> &next_x_vals, vector<double> &next_y_vals,
+              const double car_x,
+              const double car_y,
+              const double car_yaw){
+
+  double dist_inc = 0.5;
+  for (int i = 0; i < 50; ++i) {
+    next_x_vals.push_back(car_x+(dist_inc*i)*cos(deg2rad(car_yaw)));
+    next_y_vals.push_back(car_y+(dist_inc*i)*sin(deg2rad(car_yaw)));
+  }
+}
+
+// Follow Middle Lane (Ignoring Other Cars)
+void followMidLane(vector<double> &next_x_vals, vector<double> &next_y_vals,
+              const double car_s,
+              const vector<double> map_waypoints_s,
+              const vector<double> map_waypoints_x,
+              const vector<double> map_waypoints_y) {
+  double dist_inc = 0.44;
+  for (int i = 0; i < 50; ++i) {
+    double next_s = car_s + (dist_inc*(i+1));
+    double next_d = 6;
+    vector<double> next_xy = getXY(next_s, next_d, map_waypoints_s, map_waypoints_x, map_waypoints_y);
+    next_x_vals.push_back(next_xy[0]);
+    next_y_vals.push_back(next_xy[1]);
+  }
+}
+
 #endif  // HELPERS_H

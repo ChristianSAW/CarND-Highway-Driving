@@ -1,0 +1,12 @@
+<<<<<<< HEAD
+.vscode*
+.vscode/*
+build*
+=======
+build/*
+<<<<<<< HEAD
+ 
+>>>>>>> 90854fb... Adding simple lane following, no car avoidance
+=======
+.vscode/* 
+>>>>>>> e321715... ignoring .vscode
