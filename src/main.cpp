@@ -57,7 +57,7 @@ int main() {
 
   // Have a reference velocity to target
   // Essentially the speed limit we want to abide by
-  double ref_vel = 49.5; // mph 
+  double ref_vel = 0; // mph 
 
   h.onMessage([&map_waypoints_x,&map_waypoints_y,&map_waypoints_s,
                &map_waypoints_dx,&map_waypoints_dy,
@@ -131,20 +131,21 @@ int main() {
 
                 // Do some logic here, lower reference velocity so we dont crash into the ecar infront of us, could
                 // also flag to try to chagne lanes. 
-                ref_vel = 29.5; // mph 
-                //too_close = true;
+                //ref_vel = 29.5; // mph 
+                too_close = true;
               }
             }
           } 
 
-          /*
-          if(too_close) {
+          
+          // Solve instantanious stop + cold start. 
+          if(too_close) {           // incremental slowdown 
             ref_vel -= 0.224;
           }
-          else if(ref_vel < 49.5) {
+          else if(ref_vel < 49.5) { // cold start + incremental acceleration
             ref_vel += 0.224;
           }
-          */
+          
 
           // Create a list of widly spaced (x,y) waypoints, evely spaced at 30m
           // Later we will interpolate these waypoings with a splien and fill it in with more points to control the speed
