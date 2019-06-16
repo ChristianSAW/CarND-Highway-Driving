@@ -107,7 +107,7 @@ int main() {
           // Have the advantage of knowing the previous path and its size. 
           int prev_size = previous_path_x.size();
            
-          /*
+          
           if(prev_size > 0)
           {
             car_s = end_path_s;
@@ -135,7 +135,7 @@ int main() {
                 //too_close = true;
               }
             }
-          } */
+          } 
 
           /*
           if(too_close) {
