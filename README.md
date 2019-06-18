@@ -92,6 +92,7 @@ For the final code archetecture, the logic is as follows:
 
 2. If the too_close flag is triggered, I check to see if the car should switch lanes. I first check the left lane and then the right lane. If the car can switch to the left lane, it will do so. If it cannot switch, it will check if it can switch to the right lane. The basic logic for determening if the car can switch lanes is determening if there is room between the two cars v1 and v2 for the car to move into. The future location and speed of cars v1 and v2 is taken into account. Detail of this logic can be seen in the heavily commented code. [lines 180-278]
 
+```
 // Our car is v, other lane vehicles are shown as v1 and v2. 
                 /*
                 |      |     |****
@@ -100,6 +101,7 @@ For the final code archetecture, the logic is as follows:
                 |      |     |****
                 |  v1  |     |****
                 */
+```
 
 3. To abide by acceleration and jerk constraints, the car starts at an initial velocity of 0 mph. If the car is not too_close, it then incrementally speeds up to the desired speed of 49.5 mph. Similarly, if the car is too_close and will not switch lanes, the vehicle incrementally slows down so long as the too_close flag is triggered and the vehicle does not switch lanes. [lines 64, 181, 280-282]
 
