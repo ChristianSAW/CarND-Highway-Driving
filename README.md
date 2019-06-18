@@ -90,7 +90,7 @@ For the final code archetecture, the logic is as follows:
 
 1. I loop through the sensor_fusion data (data corresponding to other road vehicles) and categorized other vehicles (Fernet coordinates + car speed) into vectors corresponding to the vehicle lane. I also note if the the car most immediatly in front of our car is too close. [lines 129-159]
 
-2. If the too_close flag is triggered, I check to see if the car should switch lanes. I first check the left lane and then the right lane. If the car can switch to the left lane, it will do so. If it cannot switch, it will check if it can switch to the right lane. The basic logic for determening if the car can switch lanes is determening if there is room between the two cars v1 and v2 for the car to move into. The future location and speed of cars v1 and v2 is taken into account. Detail of this logic can be seen in the heavily commented code. [lines 180-278]
+2. If the too_close flag is triggered, I check to see if the car should switch lanes. I first check the left lane and then the right lane. If the car can switch to the left lane, it will do so. If it cannot switch, it will check if it can switch to the right lane. The basic logic for determening if the car can switch lanes is determening if there is room between the two cars v1 and v2 for the car to move into. The future location and speed of cars v1 and v2 are taken into account. Detail of this logic can be seen in the heavily commented code. [lines 180-278]
 
 ```
 // Our car is v, other lane vehicles are shown as v1 and v2. 
