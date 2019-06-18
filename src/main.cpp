@@ -8,11 +8,15 @@
 #include "helpers.h"
 #include "json.hpp"
 #include "spline.h"
+#include <unordered_map>
+#include <limits>
 
 // for convenience
 using nlohmann::json;
 using std::string;
 using std::vector;
+
+using namespace std;
 
 int main() {
   uWS::Hub h;
@@ -114,30 +118,174 @@ int main() {
           }
 
           bool too_close = false;
+          bool change_left = false;     // true if car is to change to left lane
+          bool change_right = false;    // true if car is to change to right lane
+
+          vector<Vehicle> ll_cars;      // Vector of left lane vehicles 
+          vector<Vehicle> ml_cars;      // Vector of middle lane vehicles
+          vector<Vehicle> rl_cars;      // Vector of right lane vehicles 
 
           //find ref_v to use
           for(int i = 0; i < sensor_fusion.size(); i++) {
-            // car is in my lane 
+            // Add each car to appropriate vector list 
             float d = sensor_fusion[i][6];
-            if(d < (2+4*lane+2) && d > (2+4*lane-2)) {
-              double vx = sensor_fusion[i][3];
-              double vy = sensor_fusion[i][4];
-              double check_speed = sqrt(vx*vx+vy*vy);
-              double check_car_s = sensor_fusion[i][5];
+            double vx = sensor_fusion[i][3];
+            double vy = sensor_fusion[i][4];
+            double check_speed = sqrt(vx*vx+vy*vy);
+            double check_car_s = sensor_fusion[i][5];
 
-              check_car_s+= ((double)prev_size*.02*check_speed); // if using previous paints can project s value 
+            // Determine future location of checked vehicle
+            check_car_s+= ((double)prev_size*.02*check_speed); // if using previous paints can project s value 
+
+            // Push checked vehicle into convenient data structure for organizing later
+            Vehicle check_car{check_car_s,d,check_speed}; 
+
+            // Push vehicle to appropriate vector list 
+            if (d > 0 && d <= 4) {ll_cars.push_back(check_car);}
+            if (d > 4 && d <= 8) {ml_cars.push_back(check_car);}
+            if (d > 8 && d <= 12) {rl_cars.push_back(check_car);}
+
+
+            // Check if check_car is in same lane as your car 
+            if(d < (2+4*lane+2) && d > (2+4*lane-2)) {
+              
               // check s values greater than min eand s gap
               if ((check_car_s > car_s) && ((check_car_s - car_s) < 30)) {
 
-                // Do some logic here, lower reference velocity so we dont crash into the ecar infront of us, could
-                // also flag to try to chagne lanes. 
-                //ref_vel = 29.5; // mph 
                 too_close = true;
+
               }
             }
           } 
 
+          // Save vectors to hashtable for easy query
+          unordered_map<int, vector<Vehicle>> lane_cars;
+          lane_cars[0] = ll_cars;
+          lane_cars[1] = ml_cars;
+          lane_cars[2] = rl_cars;
+
+          // Logic to cold start, decelerate, accelerate, and lane switch
+          /* 
+          // Here we dont use a cost function, but just see if switching lanes is possible.
+          // If it is possible, given that the current vehicle ahead of us is too close and would 
+          // force us to slow down to avoid a crash, it is assumed switching lanes will allows us 
+          // to maintain a higher speed. 
+          //
+          // Furthermore, distinction between switching to the left and right lane is arbitrary. 
+          // Currently, if a left lane swith is possible, the car will switch to the left lane. 
+          // Only if switching to the left lane is not possible, will the car consider switching 
+          // to the right lane as an alternative. It is entierly possible no lane switching occurs, 
+          // and the vehicle is forced to decelerate.  
+          */
+          if (too_close) {
+            ref_vel -= 0.224;           // incremental slowdown 
+
+            // Check neighboring lanes 
+            int right_lane = lane + 1;
+            int left_lane = lane - 1;
+            double dist1, dist2;
+
+            // [1] Check if can switch to left lane
+            if (left_lane >= 0) { // True if car is not in left most lane
+
+              // find vehicle 1 and 2 in this lane
+                /*
+                |      |     |****
+                |  v2  |     |****
+                |      |  v  |****
+                |      |     |****
+                |  v1  |     |****
+                */
+
+              dist1 = numeric_limits<double>::max();
+              dist2 = dist1;
+
+              Vehicle vL1;
+              Vehicle vL2;
+
+              // Loop through all left lane vehcles 
+              for (int i = 0; i < lane_cars[left_lane].size(); ++i) {
+                
+                // [a] Check if current car belongs to v1 category (i.e. behind our car)
+                if (lane_cars[left_lane][i].s < car_s) {
+                  // [a.1] from vehicles behild the car, find the vehicle that will be closest to the car.
+                  if (abs(car_s - lane_cars[left_lane][i].s) < dist1) {
+                    vL1 = lane_cars[left_lane][i];
+                    dist1 = abs(car_s - vL1.s);
+                  }
+                }
+                // [b] otherwise current car belongs to v2 category (i.e. in front of our car)
+                else {
+                  // [b.1] from vehicles in front of the car, find the vehicle that will be closest to the car.
+                  if (abs(car_s - lane_cars[left_lane][i].s) < dist2) {
+                    vL2 = lane_cars[left_lane][i];
+                    dist2 = abs(car_s - vL2.s);
+                  }
+                
+                }
+
+              }
+
+              // Determine if the gap between v2 and v1 is large enough to make the lange change
+              if (((vL1.speed < car_speed && dist1 > 10) || dist1 > 30) &&
+                  ((vL2.speed > car_speed && dist2 > 10) || dist2 > 30)) {
+                change_left = true;
+              }
+            }
+
+            // [2] Check right lane in same way
+            if (right_lane <= 2 && !change_left) { // True if car is not in right most lane && 
+                                                   // car will not be changing to left lane
+
+              dist1 = numeric_limits<double>::max();
+              dist2 = dist1;
+
+              Vehicle vR1;
+              Vehicle vR2;
+
+              // Loop through all right lane vehcles 
+              for (int i = 0; i < lane_cars[right_lane].size(); ++i) {
+                
+                // [a] Check if current car belongs to v1 category (i.e. behind our car)
+                if (lane_cars[right_lane][i].s < car_s) {
+                  // [a.1] from vehicles behild the car, find the vehicle that will be closest to the car.
+                  if (abs(car_s - lane_cars[right_lane][i].s) < dist1) {
+                    vR1 = lane_cars[right_lane][i];
+                    dist1 = abs(car_s - vR1.s);
+                  }
+                }
+                // [b] otherwise current car belongs to v2 category (i.e. in front of our car)
+                else {
+                  // [b.1] from vehicles in front of the car, find the vehicle that will be closest to the car.
+                  if (abs(car_s - lane_cars[right_lane][i].s) < dist2) {
+                    vR2 = lane_cars[right_lane][i];
+                    dist2 = abs(car_s - vR2.s);
+                  }
+                
+                }
+
+              }
+
+              // Determine if the gap between v2 and v1 is large enough to make the lange change
+              if (((vR1.speed < car_speed && dist1 > 10) || dist1 > 30) &&
+                  ((vR2.speed > car_speed && dist2 > 10) || dist2 > 30)) {
+                change_right = true;
+              }
+            }
+            
+            // [3] Update change lane flag is triggered
+            if (change_left) {lane--;}
+            else if (change_right) {lane++;}
+          }
+          else if (ref_vel < 49.5) { // cold start + incremental acceleration
+            ref_vel += 0.224;
+          }
+
           
+
+
+
+          /*
           // Solve instantanious stop + cold start. 
           if(too_close) {           // incremental slowdown 
             ref_vel -= 0.224;
@@ -145,7 +293,7 @@ int main() {
           else if(ref_vel < 49.5) { // cold start + incremental acceleration
             ref_vel += 0.224;
           }
-          
+          */
 
           // Create a list of widly spaced (x,y) waypoints, evely spaced at 30m
           // Later we will interpolate these waypoings with a splien and fill it in with more points to control the speed
@@ -192,6 +340,7 @@ int main() {
 
 
           // In Frenet add evenly 30m spaced points ahead of the starting reference 
+          // Note, with the way we do this, lane changes are smooth.to 
           vector<double> next_wp0 = getXY(car_s + 30, (2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
           vector<double> next_wp1 = getXY(car_s + 60, (2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);
           vector<double> next_wp2 = getXY(car_s + 90, (2+4*lane),map_waypoints_s,map_waypoints_x,map_waypoints_y);

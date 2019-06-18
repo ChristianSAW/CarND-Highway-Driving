@@ -9,6 +9,14 @@
 using std::string;
 using std::vector;
 
+// Vehicle data structure for convenience 
+struct Vehicle 
+{
+  double s;       // Fernet s coord
+  double d;       // Fernet d coord
+  double speed;   // Vehicle speed
+};
+
 // Checks if the SocketIO event has JSON data.
 // If there is data the JSON object in string format will be returned,
 //   else the empty string "" will be returned.
