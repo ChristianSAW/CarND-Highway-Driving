@@ -63,13 +63,55 @@ the path has processed since last time.
 
 1. The car uses a perfect controller and will visit every (x,y) point it recieves in the list every .02 seconds. The units for the (x,y) points are in meters and the spacing of the points determines the speed of the car. The vector going from a point to the next point in the list dictates the angle of the car. Acceleration both in the tangential and normal directions is measured along with the jerk, the rate of change of total Acceleration. The (x,y) point paths that the planner recieves should not have a total acceleration that goes over 10 m/s^2, also the jerk should not go over 50 m/s^3. (NOTE: As this is BETA, these requirements might change. Also currently jerk is over a .02 second interval, it would probably be better to average total acceleration over 1 second and measure jerk from that.
 
-2. There will be some latency between the simulator running and the path planner returning a path, with optimized code usually its not very long maybe just 1-3 time steps. During this delay the simulator will continue using points that it was last given, because of this its a good idea to store the last points you have used so you can have a smooth transition. previous_path_x, and previous_path_y can be helpful for this transition since they show the last points given to the simulator controller with the processed points already removed. You would either return a path that extends this previous path or make sure to create a new path that has a smooth transition with this last path.
+2. There will be some latency between the simulator running and the path planner returning a path, with optimized code usually its not very long maybe just 1-3 time steps. During this delay the simulator will continue using points that it was last given, because of this its a good idea to store the last points you have used so you can have a smooth transition. previous_path_x, and previous_path_y can be helpful for this transition since they show the last points given to the simulator controller with the processed points already removed. You would seither return a path that extends this previous path or make sure to create a new path that has a smooth transition with this last path.
 
 ## Tips
 
 A really helpful resource for doing this project and creating smooth trajectories was using http://kluge.in-chemnitz.de/opensource/spline/, the spline function is in a single hearder file is really easy to use.
 
 ---
+
+
+## Reflection 
+
+The general approach I took to this project was accomplishing the following: 
+1. Getting the car to stay in a lane.
+2. Improving the smoothness of the car trajectory to abide by jerk and acceleration constraints.
+3. Getting the car to avoid crashing into other cars within a lane.
+4. Getting the car to switch lanes when possible to maintain max speed. 
+
+A video of my final result can be shown below 
+
+[![IMAGE ALT TEXT HERE](http://i3.ytimg.com/vi/WxTSSGuseME/hqdefault.jpg)](https://youtu.be/WxTSSGuseME)
+
+The general implementation of this project follows the [Udacity Self-driving car Q&A session.](https://classroom.udacity.com/nanodegrees/nd013/parts/6047fe34-d93c-4f50-8336-b70ef10cb4b2/modules/27800789-bc8e-4adc-afe0-ec781e82ceae/lessons/23add5c6-7004-47ad-b169-49a5d7b1c1cb/concepts/3bdfeb8c-8dd6-49a7-9d08-beff6703792d). 
+
+For the final code archetecture, the logic is as follows: 
+
+1. I loop through the sensor_fusion data (data corresponding to other road vehicles) and categorized other vehicles (Fernet coordinates + car speed) into vectors corresponding to the vehicle lane. I also note if the the car most immediatly in front of our car is too close. [lines 129-159]
+
+2. If the too_close flag is triggered, I check to see if the car should switch lanes. I first check the left lane and then the right lane. If the car can switch to the left lane, it will do so. If it cannot switch, it will check if it can switch to the right lane. The basic logic for determening if the car can switch lanes is determening if there is room between the two cars v1 and v2 for the car to move into. The future location and speed of cars v1 and v2 is taken into account. Detail of this logic can be seen in the heavily commented code. [lines 180-278]
+
+// Our car is v, other lane vehicles are shown as v1 and v2. 
+                /*
+                |      |     |****
+                |  v2  |     |****
+                |      |  v  |****
+                |      |     |****
+                |  v1  |     |****
+                */
+
+3. To abide by acceleration and jerk constraints, the car starts at an initial velocity of 0 mph. If the car is not too_close, it then incrementally speeds up to the desired speed of 49.5 mph. Similarly, if the car is too_close and will not switch lanes, the vehicle incrementally slows down so long as the too_close flag is triggered and the vehicle does not switch lanes. [lines 64, 181, 280-282]
+
+**At this point, the rest follows the [Udacity Self-driving car Q&A session.](https://classroom.udacity.com/nanodegrees/nd013/parts/6047fe34-d93c-4f50-8336-b70ef10cb4b2/modules/27800789-bc8e-4adc-afe0-ec781e82ceae/lessons/23add5c6-7004-47ad-b169-49a5d7b1c1cb/concepts/3bdfeb8c-8dd6-49a7-9d08-beff6703792d) very closely. I will summarize below though.
+
+4. With the lane and speed of the vehicle decided, the car creates a trajectory of 50 points to follow. The points are created by using the previous paths last two points, and then 3 additional points allong the road seperated by 30 m. [lines 301-354]
+
+5. The final waypoings take the remainding points from the last trajectory + new points created from a spline of the 5 aformentioned points. Note, not necessary all of the new points will be added. Points will only be added until there is a total of 50 points in the current cycle waypoint list. [lines 368-415]
+
+6. Path smoothing uses the spline library [spline.h](http://kluge.in-chemnitz.de/opensource/spline/).
+
+7. When creating the 5 points for the spline, I changed to fernet coordinates relative to the car's local reference frame for simplicity. I tranform back into a global cartesian reference frame in the end. [lines 359-364, 405-410]
 
 ## Dependencies
 
